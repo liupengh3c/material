@@ -62,7 +62,7 @@ int main()
         "void main()\n"
         "{\n"
         "gl_Position = projection * view * model * vec4(position, 1.0f);\n"
-        "Normal = normal;\n"
+        "Normal = mat3(transpose(inverse(model))) * normal;\n"
         "FragPos = vec3(model * vec4(position,1.0f));\n"
         "}\0";
 
@@ -270,7 +270,8 @@ int main()
         glm::mat4 view;
         // 获取lookat矩阵
         view = camera.GetViewMatrix();
-        glm::mat4 projection = glm::perspective(camera.Zoom, (GLfloat)800 / (GLfloat)600, 0.1f, 100.0f);
+ 
+        glm::mat4 projection = glm::perspective(glm::radians(45.0f), (GLfloat)800 / (GLfloat)600, 0.1f, 100.0f);
         GLint modelLoc = glGetUniformLocation(shaderProgram, "model");
         GLint viewLoc = glGetUniformLocation(shaderProgram, "view");
         GLint projLoc = glGetUniformLocation(shaderProgram, "projection");
@@ -279,8 +280,8 @@ int main()
         glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
         glm::mat4 model;
-        model = glm::rotate(model, 15.0f, glm::vec3(1.0f, 1.0f, 0.0f));
-        //model = glm::translate(model, glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::rotate(model, -10.0f, glm::vec3(1.0f, 1.0f, 0.0f));
+        model = glm::translate(model, glm::vec3(0.0f, -1.0f, 0.0f));
         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
         GLint lightPosLoc = glGetUniformLocation(shaderProgram, "lightPos");
