@@ -280,7 +280,7 @@ int main()
 
         glm::mat4 model;
         model = glm::rotate(model, 15.0f, glm::vec3(1.0f, 1.0f, 0.0f));
-        model = glm::translate(model, glm::vec3(0.0f, 1.0f, 0.0f));
+        //model = glm::translate(model, glm::vec3(0.0f, 1.0f, 0.0f));
         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
         GLint lightPosLoc = glGetUniformLocation(shaderProgram, "lightPos");
