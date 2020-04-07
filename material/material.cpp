@@ -12,6 +12,12 @@
 #include <GL/glew.h>
 
 #include <GLFW/glfw3.h>
+#include <Camera.h>
+
+
+// Light attributes
+glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
+Camera  camera(glm::vec3(0.0f, 0.0f, 6.0f));
 int main()
 {
     std::cout << "Hello World!\n" << std::endl;
@@ -44,21 +50,19 @@ int main()
     const GLchar* vertexShaderSource = 
         "#version 330 core\n"
         "layout (location = 0) in vec3 position;\n"
-        "layout (location = 1) in vec3 color;\n"
-        "layout (location = 2) in vec3 aNormal;\n"
+        "layout (location = 1) in vec3 normal;\n"
 
         "uniform mat4 model;\n"
         "uniform mat4 projection;\n"
+        "uniform mat4 view;\n"
 
-        "out vec3 vertexColor;\n"
         "out vec3 Normal;\n"
         "out vec3 FragPos;\n"
 
-
         "void main()\n"
         "{\n"
-        "gl_Position = projection * model * vec4(position, 1.0f);\n"
-        "vertexColor = color;\n"
+        "gl_Position = projection * view * model * vec4(position, 1.0f);\n"
+        "Normal = normal;\n"
         "FragPos = vec3(model * vec4(position,1.0f));\n"
         "}\0";
 
@@ -78,78 +82,143 @@ int main()
         return -1;
     }
 
+
     const GLchar* fragShaderSource =
         "#version 330 core\n"
 
-        "in vec3 vertexColor;\n"
         "out vec4 color;\n"
 
-        "struct Material\n"
-        "{\n"
-            "vec3 ambient;\n"
-            "vec3 diffuse;\n"
-            "vec3 specular;\n"
-            "float shiniess;\n"
-        "};\n"
+        "in vec3 Normal;\n"
+        "in vec3 FragPos;\n"
 
-        "uniform Material material;\n"
+        "uniform vec3 objectColor;\n"
+        "uniform vec3 lightColor;\n"
+        "uniform vec3 lightPos;\n"
+
         "void main()\n"
         "{\n"
-        "color = vec4(vertexColor,1.0f);\n"
+        // 环境光
+        "float ambientStrength = 0.1f;\n"
+        "vec3 ambient = ambientStrength * lightColor;\n"
+        // 漫反射
+        "vec3 norm = normalize(Normal);\n"
+        "vec3 lightDir = normalize(lightPos - FragPos);\n"
+        "float diff = max(dot(norm,lightDir),0.0f);\n"
+        "vec3 diffuse = diff * lightColor;\n"
+
+        "color = vec4((ambient + diffuse) * objectColor,1.0f);\n"
         "}\n";
 
     GLuint fragShader = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fragShader, 1, &fragShaderSource, NULL);
     glCompileShader(fragShader);
 
+    glGetShaderiv(fragShader, GL_COMPILE_STATUS, &success);
+
+    if (!success)
+    {
+        glGetShaderInfoLog(fragShader, 512, NULL, infoLog);
+        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
+        return -1;
+    }
+
+
     GLuint shaderProgram = glCreateProgram();
     glAttachShader(shaderProgram, vertexShader);
     glAttachShader(shaderProgram, fragShader);
     glLinkProgram(shaderProgram);
 
-    GLfloat vertices[] = {                      
-                                                // 法向            
-        -0.5f, -0.5f, -0.5f, 1.0f, 0.5f, 0.31f, 0.0f,  0.0f, -1.0f,
-         0.5f, -0.5f, -0.5f, 1.0f, 0.5f, 0.31f, 0.0f,  0.0f, -1.0f,
-         0.5f,  0.5f, -0.5f, 1.0f, 0.5f, 0.31f, 0.0f,  0.0f, -1.0f,
-         0.5f,  0.5f, -0.5f, 1.0f, 0.5f, 0.31f, 0.0f,  0.0f, -1.0f,
-        -0.5f,  0.5f, -0.5f, 1.0f, 0.5f, 0.31f, 0.0f,  0.0f, -1.0f,
-        -0.5f, -0.5f, -0.5f, 1.0f, 0.5f, 0.31f, 0.0f,  0.0f, -1.0f,
+    const GLchar* vertexLampShaderSource =
+        "#version 330 core\n"
+        "layout (location = 0) in vec3 position;\n"
 
-        -0.5f, -0.5f,  0.5f, 1.0f, 0.5f, 0.31f, 0.0f,  0.0f, 1.0f,
-         0.5f, -0.5f,  0.5f, 1.0f, 0.5f, 0.31f, 0.0f,  0.0f, 1.0f,
-         0.5f,  0.5f,  0.5f, 1.0f, 0.5f, 0.31f, 0.0f,  0.0f, 1.0f,
-         0.5f,  0.5f,  0.5f, 1.0f, 0.5f, 0.31f, 0.0f,  0.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f, 1.0f, 0.5f, 0.31f, 0.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f, 1.0f, 0.5f, 0.31f, 0.0f,  0.0f, 1.0f,
+        "uniform mat4 model;\n"
+        "uniform mat4 projection;\n"
+        "uniform mat4 view;\n"
 
-        -0.5f,  0.5f,  0.5f, 1.0f, 0.5f, 0.31f, 1.0f,  0.0f,  0.0f,
-        -0.5f,  0.5f, -0.5f, 1.0f, 0.5f, 0.31f, 1.0f,  0.0f,  0.0f,
-        -0.5f, -0.5f, -0.5f, 1.0f, 0.5f, 0.31f, 1.0f,  0.0f,  0.0f,
-        -0.5f, -0.5f, -0.5f, 1.0f, 0.5f, 0.31f, 1.0f,  0.0f,  0.0f,
-        -0.5f, -0.5f,  0.5f, 1.0f, 0.5f, 0.31f, 1.0f,  0.0f,  0.0f,
-        -0.5f,  0.5f,  0.5f, 1.0f, 0.5f, 0.31f, 1.0f,  0.0f,  0.0f,
+        "void main()\n"
+        "{\n"
+        "gl_Position = projection * view * model * vec4(position, 1.0f);\n"
+        "}\0";
+    GLuint vertexLampShader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertexLampShader, 1, &vertexLampShaderSource, NULL);
+    glCompileShader(vertexLampShader);
+    glGetShaderiv(vertexLampShader, GL_COMPILE_STATUS, &success);
 
-         0.5f,  0.5f,  0.5f, 1.0f, 0.5f, 0.31f, 1.0f,  0.0f,  0.0f,
-         0.5f,  0.5f, -0.5f, 1.0f, 0.5f, 0.31f, 1.0f,  0.0f,  0.0f,
-         0.5f, -0.5f, -0.5f, 1.0f, 0.5f, 0.31f, 1.0f,  0.0f,  0.0f,
-         0.5f, -0.5f, -0.5f, 1.0f, 0.5f, 0.31f, 1.0f,  0.0f,  0.0f,
-         0.5f, -0.5f,  0.5f, 1.0f, 0.5f, 0.31f, 1.0f,  0.0f,  0.0f,
-         0.5f,  0.5f,  0.5f, 1.0f, 0.5f, 0.31f, 1.0f,  0.0f,  0.0f,
+    if (!success)
+    {
+        glGetShaderInfoLog(vertexLampShader, 512, NULL, infoLog);
+        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
+        return -1;
+    }
+    const GLchar* fragLampShaderSource =
+        "#version 330 core\n"
+        "out vec4 color;\n"
 
-        -0.5f, -0.5f, -0.5f, 1.0f, 0.5f, 0.31f, 0.0f, -1.0f,  0.0f,
-         0.5f, -0.5f, -0.5f, 1.0f, 0.5f, 0.31f, 0.0f, -1.0f,  0.0f,
-         0.5f, -0.5f,  0.5f, 1.0f, 0.5f, 0.31f, 0.0f, -1.0f,  0.0f,
-         0.5f, -0.5f,  0.5f, 1.0f, 0.5f, 0.31f, 0.0f, -1.0f,  0.0f,
-        -0.5f, -0.5f,  0.5f, 1.0f, 0.5f, 0.31f, 0.0f, -1.0f,  0.0f,
-        -0.5f, -0.5f, -0.5f, 1.0f, 0.5f, 0.31f, 0.0f, -1.0f,  0.0f,
+        "void main()\n"
+        "{\n"
+        "color = vec4(1.0f);\n"
+        "}\n";
 
-        -0.5f,  0.5f, -0.5f, 1.0f, 0.5f, 0.31f, 0.0f,  1.0f,  0.0f,
-         0.5f,  0.5f, -0.5f, 1.0f, 0.5f, 0.31f, 0.0f,  1.0f,  0.0f,
-         0.5f,  0.5f,  0.5f, 1.0f, 0.5f, 0.31f, 0.0f,  1.0f,  0.0f,
-         0.5f,  0.5f,  0.5f, 1.0f, 0.5f, 0.31f, 0.0f,  1.0f,  0.0f,
-        -0.5f,  0.5f,  0.5f, 1.0f, 0.5f, 0.31f, 0.0f,  1.0f,  0.0f,
-        -0.5f,  0.5f, -0.5f, 1.0f, 0.5f, 0.31f, 0.0f,  1.0f,  0.0f,
+    GLuint fragLampShader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragLampShader, 1, &fragLampShaderSource, NULL);
+    glCompileShader(fragLampShader);
+    glGetShaderiv(fragLampShader, GL_COMPILE_STATUS, &success);
+
+    if (!success)
+    {
+        glGetShaderInfoLog(fragLampShader, 512, NULL, infoLog);
+        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
+        return -1;
+    }
+
+    GLuint shaderLampProgram = glCreateProgram();
+    glAttachShader(shaderLampProgram, vertexLampShader);
+    glAttachShader(shaderLampProgram, fragLampShader);
+    glLinkProgram(shaderLampProgram);
+
+    float vertices[] = {
+    -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+     0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+     0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+     0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+    -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+
+    -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+     0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+     0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+     0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+    -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+
+    -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+    -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+    -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+    -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+    -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+    -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+
+     0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+     0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+     0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+     0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+     0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+
+    -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+     0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+     0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+     0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+
+    -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+     0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+    -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+    -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
     };
 
     // 设置顶点属性
@@ -162,12 +231,26 @@ int main()
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
     // 设置顶点属性
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(GLfloat), (GLvoid*)(0 * sizeof(GLfloat)));
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)(0 * sizeof(GLfloat)));
     glEnableVertexAttribArray(0);
 
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
     glEnableVertexAttribArray(1);
+
     glBindVertexArray(0);
+
+
+    // 光源属性
+    GLuint lampVAO;
+    glGenVertexArrays(1, &lampVAO);
+    glBindVertexArray(lampVAO);
+    // 只需要绑定VBO不用再次设置VBO的数据，因为容器(物体)的VBO数据中已经包含了正确的立方体顶点数据
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    // 设置灯立方体的顶点属性指针(仅设置灯的顶点数据)
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)0);
+    glEnableVertexAttribArray(0);
+    glBindVertexArray(0);
+
 
     while (!glfwWindowShouldClose(window))
     {
@@ -177,22 +260,55 @@ int main()
         glUseProgram(shaderProgram);
         glBindVertexArray(VAO);
 
-        glm::mat4 model = glm::mat4(1.0f);
-        glm::mat4 projection = glm::mat4(1.0f);
+        GLint objectColorLoc = glGetUniformLocation(shaderProgram, "objectColor");
+        GLint lightColorLoc = glGetUniformLocation(shaderProgram, "lightColor");
 
-        projection = glm::perspective(45.0f, (GLfloat)800 / (GLfloat)600, 0.1f, 100.0f);
-        GLint projectionLoc = glGetUniformLocation(shaderProgram, "projection");
-        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
+        glUniform3f(objectColorLoc, 1.0f, 0.5f, 0.31f);// 我珊瑚红
+        glUniform3f(lightColorLoc, 1.0f, 1.0f, 1.0f); // 把光源设置为白色
 
-        model = glm::translate(model, glm::vec3(0.0f, 0.0f, -3.0f));
-        model = glm::rotate(model, 1.0f, glm::vec3(0.5f, 0.5f, 0.0f));
+
+        glm::mat4 view;
+        // 获取lookat矩阵
+        view = camera.GetViewMatrix();
+        glm::mat4 projection = glm::perspective(camera.Zoom, (GLfloat)800 / (GLfloat)600, 0.1f, 100.0f);
         GLint modelLoc = glGetUniformLocation(shaderProgram, "model");
+        GLint viewLoc = glGetUniformLocation(shaderProgram, "view");
+        GLint projLoc = glGetUniformLocation(shaderProgram, "projection");
+
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+        glm::mat4 model;
+        model = glm::rotate(model, 15.0f, glm::vec3(1.0f, 1.0f, 0.0f));
+        model = glm::translate(model, glm::vec3(0.0f, 1.0f, 0.0f));
         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+
+        GLint lightPosLoc = glGetUniformLocation(shaderProgram, "lightPos");
+        glUniform3f(lightPosLoc, lightPos.x, lightPos.y, lightPos.z);
 
         //glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         glDrawArrays(GL_TRIANGLES, 0, 36);
         glBindVertexArray(0);
 
+
+        // 绘制光源
+        glUseProgram(shaderLampProgram);
+        glBindVertexArray(lampVAO);
+
+        modelLoc = glGetUniformLocation(shaderLampProgram, "model");
+        viewLoc = glGetUniformLocation(shaderLampProgram, "view");
+        projLoc = glGetUniformLocation(shaderLampProgram, "projection");
+        // Set matrices
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, lightPos);
+        model = glm::scale(model, glm::vec3(0.2f)); // Make it a smaller cube
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+        // Draw the light object (using light's vertex attributes)
+ 
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glBindVertexArray(0);
         // Swap the screen buffers
         glfwSwapBuffers(window);
     }
